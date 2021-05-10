@@ -1,0 +1,23 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Instance.Name }}-web
+  namespace: {{ .Instance.Namespace }}
+spec:
+  selector:
+    matchLabels:
+      app: {{ .Instance.Name }}-app
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: {{ .Instance.Name }}-app
+    spec:
+      containers:
+        - name: default
+          image: {{ .Instance.Spec.Image }}
+          ports:
+            - containerPort: 80
+              name: http
+            - containerPort: 443
+              name: https
