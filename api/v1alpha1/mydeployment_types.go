@@ -37,11 +37,11 @@ type MyDeploymentSpec struct {
 }
 
 // MyDeploymentStatus defines the observed state of MyDeployment
-// type MyDeploymentStatus struct {
-// 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-// 	// Important: Run "make" to regenerate code after modifying this file
-// 	DeploymentStatus appsv1.DeploymentStatus `json:"deploymentStatus,omitempty"`
-// }
+type MyDeploymentStatus struct {
+	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
+	// Important: Run "make" to regenerate code after modifying this file
+	DeploymentStatus appsv1.DeploymentStatus `json:"deploymentStatus,omitempty"`
+}
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status

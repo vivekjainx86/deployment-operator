@@ -18,13 +18,14 @@ package controllers
 
 import (
 	"fmt"
-	"reflect"
+	//	"reflect"
 
 	deploymentv1alpha1 "github.com/Ridecell/deployment-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
-	"k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	//"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/types"
+	//"k8s.io/apimachinery/pkg/types"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
@@ -35,7 +36,9 @@ func (cr *ComponentReconciler) deploymentComponent(templateFile string) (bool, e
 	// create template object
 	td := &TemplateData{
 		Instance: instance,
-		Extra:    nil,
+		Extra: map[string]interface{}{
+			"Check": "123",
+		},
 	}
 
 	yamlObject, err := td.buildObjectWithTemplate(templateFile)
@@ -54,32 +57,21 @@ func (cr *ComponentReconciler) deploymentComponent(templateFile string) (bool, e
 	}
 
 	// Get object
-	found := &appsv1.Deployment{}
-	if err := cr.Reconciler.Get(cr.Context, types.NamespacedName{Name: deploy.Name, Namespace: deploy.Namespace}, found); err != nil {
-		if errors.IsNotFound(err) {
-			fmt.Println("Setting controller reference")
-			if err = controllerutil.SetControllerReference(instance, deploy, cr.Reconciler.Scheme); err != nil {
-				log.Info("Error while setting controller reference")
-				return false, err
-			}
-			fmt.Println("Creating object")
-			if err = cr.Reconciler.Create(cr.Context, deploy); err != nil {
-				log.Info("Error while creating object")
-				return false, err
-			}
-			return true, nil
-		}
-		log.Info("Error while getting object")
-		return false, err
-	}
+	found := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deploy.Name, Namespace: deploy.Namespace}}
 
-	if !reflect.DeepEqual(deploy.Spec, found.Spec) {
-		found.Spec = deploy.Spec
-		fmt.Println("Updating object")
-		if err = cr.Reconciler.Update(cr.Context, found); err != nil {
-			log.Info("Error while updating object")
-			return false, err
+	op, err := controllerutil.CreateOrUpdate(cr.Context, cr.Reconciler.Client, found, func() error {
+		if err = controllerutil.SetControllerReference(instance, found, cr.Reconciler.Scheme); err != nil {
+			return err
 		}
+		// update the Deployment spec
+		found.Spec = deploy.Spec
+		return nil
+	})
+	if err != nil {
+		log.Error(err, "Deployment reconcile failed")
+		return false, err
+	} else {
+		log.Info("Deployment successfully reconciled", "operation", op)
 	}
 
 	fmt.Println("Setting Status")
