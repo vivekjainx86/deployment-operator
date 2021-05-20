@@ -18,71 +18,36 @@ package controllers
 
 import (
 	"bytes"
-	"fmt"
-	"gopkg.in/yaml.v2"
+	"sigs.k8s.io/yaml"
 	"text/template"
 
 	deploymentv1alpha1 "github.com/Ridecell/deployment-operator/api/v1alpha1"
 )
 
-// MyDeploymentReconciler reconciles a MyDeployment object
 type TemplateData struct {
 	Instance *deploymentv1alpha1.MyDeployment
 	Extra    map[string]interface{}
 }
 
-func (td *TemplateData) buildObjectWithTemplate(templateFile string) (map[string]interface{}, error) {
+func (td *TemplateData) buildObjectWithTemplate(templateFile string, object interface{}) error {
 	// "Parse" parses a string into a template
 	t, err := template.ParseFiles(templateFile)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// variable to store executed template
+	// create yaml using TemplateData
 	var yamlDocument bytes.Buffer
 	err = t.Execute(&yamlDocument, td)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// convert yaml into Go object
-	obj := make(map[string]interface{})
-	err = yaml.Unmarshal(yamlDocument.Bytes(), &obj)
+	err = yaml.Unmarshal(yamlDocument.Bytes(), object)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// convert all nested objects to map[string]interface{}
-	for key, value := range obj {
-		obj[key] = cleanUpMapValue(value)
-	}
-
-	return obj, nil
-}
-
-func cleanUpInterfaceArray(in []interface{}) []interface{} {
-	result := make([]interface{}, len(in))
-	for i, v := range in {
-		result[i] = cleanUpMapValue(v)
-	}
-	return result
-}
-
-func cleanUpInterfaceMap(in map[interface{}]interface{}) map[string]interface{} {
-	result := make(map[string]interface{})
-	for k, v := range in {
-		result[fmt.Sprintf("%v", k)] = cleanUpMapValue(v)
-	}
-	return result
-}
-
-func cleanUpMapValue(v interface{}) interface{} {
-	switch v := v.(type) {
-	case []interface{}:
-		return cleanUpInterfaceArray(v)
-	case map[interface{}]interface{}:
-		return cleanUpInterfaceMap(v)
-	default:
-		return v
-	}
+	return nil
 }

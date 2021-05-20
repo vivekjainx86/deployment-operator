@@ -18,21 +18,19 @@ package controllers
 
 import (
 	"context"
-	"fmt"
-	//"reflect"
+	//"fmt"
 
 	"github.com/go-logr/logr"
 	//"k8s.io/apimachinery/pkg/api/errors"
-	//"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	//"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
-	//"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	//"sigs.k8s.io/controller-runtime/pkg/predicate"
 
 	deploymentv1alpha1 "github.com/Ridecell/deployment-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	//metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -47,13 +45,6 @@ type MyDeploymentReconciler struct {
 // +kubebuilder:rbac:groups=deployment.ridecell.io,resources=mydeployments/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=deployment.ridecell.io,resources=mydeployments/finalizers,verbs=update
 
-// Reconcile is part of the main kubernetes reconciliation loop which aims to
-// move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the MyDeployment object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.7.0/pkg/reconcile
 func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
@@ -66,77 +57,17 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	// build the template
-	// td := &TemplateData{
-	// 	Instance: instance,
-	// 	Extra:    nil,
-	// }
-	//
-	// yamlObject, err := td.buildObjectWithTemplate("./controllers/templates/deployment.yaml")
-	// if err != nil {
-	// 	log.Info("Unable to build yaml from template")
-	// 	return ctrl.Result{}, err
-	// }
-
-	// fmt.Println("Converting object")
-	// deploy := &appsv1.Deployment{}
-	// err = runtime.DefaultUnstructuredConverter.FromUnstructured(yamlObject, deploy)
-	// if err != nil {
-	// 	log.Info("Unable to convert yaml object from template")
-	// 	return ctrl.Result{}, err
-	// }
-
-	// Get object
-	// found := &appsv1.Deployment{}
-	// if err := r.Get(ctx, types.NamespacedName{Name: instance.Name, Namespace: instance.Namespace}, found); err != nil {
-	// 	if errors.IsNotFound(err) {
-	// 		fmt.Println("Setting controller reference")
-	// 		if err = controllerutil.SetControllerReference(instance, deploy, r.Scheme); err != nil {
-	// 			log.Info("Error while setting controller reference")
-	// 			return ctrl.Result{}, err
-	// 		}
-	// 		fmt.Println("Creating object")
-	// 		if err = r.Create(ctx, deploy); err != nil {
-	// 			log.Info("Error while creating object")
-	// 			return ctrl.Result{}, err
-	// 		}
-	// 		return ctrl.Result{Requeue: true}, nil
-	// 	}
-	// 	log.Info("Error while getting object")
-	// 	return ctrl.Result{}, err
-	// }
-	//
-	// if !reflect.DeepEqual(deploy.Spec, found.Spec) {
-	// 	found.Spec = deploy.Spec
-	// 	fmt.Println("Updating object")
-	// 	if err = r.Update(ctx, found); err != nil {
-	// 		log.Info("Error while updating object")
-	// 		return ctrl.Result{}, err
-	// 	}
-	// }
-
-	cr := &ComponentReconciler{
-		Context:    ctx,
-		Reconciler: r,
-		Instance:   instance,
-	}
-
-	// Call deploymentComponent method
-	requeue, err := cr.deploymentComponent("./controllers/templates/deployment.yaml")
+	// Call deployment sub-routine
+	err := r.ensureDeployment(instance, "./controllers/templates/deployment.yaml")
 	if err != nil {
-		return ctrl.Result{}, err
-	} else if requeue {
-		return ctrl.Result{Requeue: true}, nil
+		return r.manageError(instance, err, false)
 	}
-
-	// fmt.Println("Setting Status")
-	// instance.Status = found.Status
-	// if err := r.Status().Update(ctx, instance); err != nil {
-	// 	log.Info("Unable to update MyDeployment status")
-	// 	return ctrl.Result{}, err
-	// }
-	fmt.Println("End reconcile")
-	return ctrl.Result{}, nil
+	// Call secret sub-routine
+	err = r.ensureSecret(instance, "./controllers/templates/secret.yaml")
+	if err != nil {
+		return r.manageError(instance, err, false)
+	}
+	return r.manageSuccess(instance, false)
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -145,6 +76,39 @@ func (r *MyDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&deploymentv1alpha1.MyDeployment{}).
 		Owns(&appsv1.Deployment{}).
+		Owns(&corev1.Secret{}).
 		//WithEventFilter(pred).
 		Complete(r)
+}
+
+func (r *MyDeploymentReconciler) manageError(instance *deploymentv1alpha1.MyDeployment, err error, requeue bool) (ctrl.Result, error) {
+	// Log the error
+	log := r.Log.WithValues("mydeployment", instance.Namespace+"/"+instance.Name)
+	log.Error(err, "updating error status")
+
+	// Set error status
+	instance.Status.Status = "Error"
+	instance.Status.Message = err.Error()
+	er := r.Status().Update(context.TODO(), instance)
+	if er != nil {
+		log.Error(er, "Unable to update error status")
+		return ctrl.Result{Requeue: requeue}, er
+	}
+	return ctrl.Result{Requeue: requeue}, err
+}
+
+func (r *MyDeploymentReconciler) manageSuccess(instance *deploymentv1alpha1.MyDeployment, requeue bool) (ctrl.Result, error) {
+	log := r.Log.WithValues("mydeployment", instance.Namespace+"/"+instance.Name)
+
+	// Set success status
+	instance.Status.Status = "Success"
+	instance.Status.Message = "Reconcile completed"
+	er := r.Status().Update(context.TODO(), instance)
+	if er != nil {
+		log.Error(er, "Unable to update success status")
+		return ctrl.Result{Requeue: requeue}, er
+	} else {
+		log.Info("Update status completed")
+	}
+	return ctrl.Result{Requeue: requeue}, nil
 }

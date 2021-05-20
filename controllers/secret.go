@@ -21,46 +21,48 @@ import (
 	"github.com/pkg/errors"
 
 	deploymentv1alpha1 "github.com/Ridecell/deployment-operator/api/v1alpha1"
-	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 )
 
-func (r *MyDeploymentReconciler) ensureDeployment(instance *deploymentv1alpha1.MyDeployment, templateFile string) error {
+func (r *MyDeploymentReconciler) ensureSecret(instance *deploymentv1alpha1.MyDeployment, templateFile string) error {
 	// create template object
 	td := &TemplateData{
 		Instance: instance,
 		Extra: map[string]interface{}{
-			"Check": "123",
+			"Password": "123456789",
+			"Name":     "Shaktimaan",
 		},
 	}
 
-	deploy := &appsv1.Deployment{}
-	err := td.buildObjectWithTemplate(templateFile, deploy)
+	secret := &corev1.Secret{}
+	err := td.buildObjectWithTemplate(templateFile, secret)
 	if err != nil {
-		return errors.Wrap(err, "deployment.go: Unable to build yaml from template")
+		return errors.Wrap(err, "secret.go: Unable to build yaml from template")
 	}
 
 	// Get object
-	found := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deploy.Name, Namespace: deploy.Namespace}}
+	found := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secret.Name, Namespace: secret.Namespace}}
 
 	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, found, func() error {
 		if err = controllerutil.SetControllerReference(instance, found, r.Scheme); err != nil {
 			return err
 		}
-		// update the Deployment object
-		found.Labels = deploy.Labels
-		//found.Annotations = deploy.Annotations
-		found.Spec = deploy.Spec
+		// update the secret
+		found.Labels = secret.Labels
+		found.Annotations = secret.Annotations
+		found.Type = secret.Type
+		found.StringData = secret.StringData
 		return nil
 	})
 	if err != nil {
-		return errors.Wrap(err, "deployment.go: Deployment CreateOrUpdate failed")
+		return errors.Wrap(err, "secret.go: Secret CreateOrUpdate failed")
 	}
 
-	instance.Status.DeploymentStatus = string(op)
+	instance.Status.SecretStatus = string(op)
 	if err := r.Status().Update(context.TODO(), instance); err != nil {
-		return errors.Wrap(err, "deployment.go: Unable to update status")
+		return errors.Wrap(err, "secret.go: Unable to update status")
 	}
 
 	return nil

@@ -17,7 +17,7 @@ limitations under the License.
 package v1alpha1
 
 import (
-	appsv1 "k8s.io/api/apps/v1"
+	//appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
@@ -40,19 +40,22 @@ type MyDeploymentSpec struct {
 type MyDeploymentStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	DeploymentStatus appsv1.DeploymentStatus `json:"deploymentStatus,omitempty"`
+	DeploymentStatus string `json:"deploymentStatus,omitempty"`
+	SecretStatus     string `json:"secretStatus,omitempty"`
+	Status           string `json:"status,omitempty"`
+	Message          string `json:"message,omitempty"`
 }
 
+// MyDeployment is the Schema for the mydeployments API
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
-
-// MyDeployment is the Schema for the mydeployments API
+// +kubebuilder:printcolumn:name="Status",type="string",JSONPath=".status.status",description="object status"
 type MyDeployment struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   MyDeploymentSpec        `json:"spec,omitempty"`
-	Status appsv1.DeploymentStatus `json:"status,omitempty"`
+	Spec   MyDeploymentSpec   `json:"spec,omitempty"`
+	Status MyDeploymentStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
