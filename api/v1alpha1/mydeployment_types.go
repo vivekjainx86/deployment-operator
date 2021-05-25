@@ -40,10 +40,12 @@ type MyDeploymentSpec struct {
 type MyDeploymentStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
-	DeploymentStatus string `json:"deploymentStatus,omitempty"`
-	SecretStatus     string `json:"secretStatus,omitempty"`
-	Status           string `json:"status,omitempty"`
-	Message          string `json:"message,omitempty"`
+	//DeploymentStatus string `json:"deploymentStatus,omitempty"`
+	//SecretStatus     string `json:"secretStatus,omitempty"`
+	Status     string `json:"status,omitempty"`
+	Message    string `json:"message,omitempty"`
+	Image      string `json:"image,omitempty"`
+	SecretHash string `json:"secretHash,omitempty"`
 }
 
 // MyDeployment is the Schema for the mydeployments API

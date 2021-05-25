@@ -2,7 +2,7 @@ apiVersion: deployment.ridecell.io/v1alpha1
 kind: MyDeployment
 metadata:
   name: mydeployment-sample
-spec:
+spec:  {}
   # Add fields here
-  name: vivekjain
-  image: nginx
+  #name: vivekjain
+  #image: nginx

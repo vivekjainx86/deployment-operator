@@ -18,6 +18,7 @@ package controllers
 
 import (
 	"context"
+	"encoding/json"
 	"github.com/pkg/errors"
 
 	deploymentv1alpha1 "github.com/Ridecell/deployment-operator/api/v1alpha1"
@@ -45,22 +46,24 @@ func (r *MyDeploymentReconciler) ensureSecret(instance *deploymentv1alpha1.MyDep
 	// Get object
 	found := &corev1.Secret{ObjectMeta: metav1.ObjectMeta{Name: secret.Name, Namespace: secret.Namespace}}
 
-	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, found, func() error {
-		if err = controllerutil.SetControllerReference(instance, found, r.Scheme); err != nil {
-			return err
-		}
+	_, err = controllerutil.CreateOrUpdate(context.TODO(), r.Client, found, func() error {
 		// update the secret
 		found.Labels = secret.Labels
 		found.Annotations = secret.Annotations
 		found.Type = secret.Type
 		found.StringData = secret.StringData
-		return nil
+		return controllerutil.SetControllerReference(instance, found, r.Scheme)
 	})
 	if err != nil {
 		return errors.Wrap(err, "secret.go: Secret CreateOrUpdate failed")
 	}
 
-	instance.Status.SecretStatus = string(op)
+	secretBytes, err := json.Marshal(found.Data)
+	if err != nil {
+		return errors.Wrap(err, "secret.go: Unable to serialize secret data")
+	}
+
+	instance.Status.SecretHash = HashItem(secretBytes)
 	if err := r.Status().Update(context.TODO(), instance); err != nil {
 		return errors.Wrap(err, "secret.go: Unable to update status")
 	}

@@ -18,12 +18,11 @@ package controllers
 
 import (
 	"context"
-	//"fmt"
+	"crypto/sha1"
+	"encoding/hex"
 
 	"github.com/go-logr/logr"
-	//"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
-	//"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	//"sigs.k8s.io/controller-runtime/pkg/predicate"
@@ -31,7 +30,6 @@ import (
 	deploymentv1alpha1 "github.com/Ridecell/deployment-operator/api/v1alpha1"
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	//metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // MyDeploymentReconciler reconciles a MyDeployment object
@@ -57,8 +55,17 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	// initialize instance with default values
+	r.ensureDefaults(instance)
+
+	// Send start notification
+	err := r.ensureStartNotification(instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Call deployment sub-routine
-	err := r.ensureDeployment(instance, "./controllers/templates/deployment.yaml")
+	err = r.ensureDeployment(instance, "./controllers/templates/deployment.yaml")
 	if err != nil {
 		return r.manageError(instance, err, false)
 	}
@@ -70,7 +77,6 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	return r.manageSuccess(instance, false)
 }
 
-// SetupWithManager sets up the controller with the Manager.
 func (r *MyDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	//pred := predicate.ResourceVersionChangedPredicate{}
 	return ctrl.NewControllerManagedBy(mgr).
@@ -84,7 +90,9 @@ func (r *MyDeploymentReconciler) SetupWithManager(mgr ctrl.Manager) error {
 func (r *MyDeploymentReconciler) manageError(instance *deploymentv1alpha1.MyDeployment, err error, requeue bool) (ctrl.Result, error) {
 	// Log the error
 	log := r.Log.WithValues("mydeployment", instance.Namespace+"/"+instance.Name)
-	log.Error(err, "updating error status")
+	log.Error(err, "Updating error status")
+
+	_ = r.ensureErrorNotification(instance)
 
 	// Set error status
 	instance.Status.Status = "Error"
@@ -100,6 +108,11 @@ func (r *MyDeploymentReconciler) manageError(instance *deploymentv1alpha1.MyDepl
 func (r *MyDeploymentReconciler) manageSuccess(instance *deploymentv1alpha1.MyDeployment, requeue bool) (ctrl.Result, error) {
 	log := r.Log.WithValues("mydeployment", instance.Namespace+"/"+instance.Name)
 
+	err := r.ensureSuccessNotification(instance)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
 	// Set success status
 	instance.Status.Status = "Success"
 	instance.Status.Message = "Reconcile completed"
@@ -111,4 +124,9 @@ func (r *MyDeploymentReconciler) manageSuccess(instance *deploymentv1alpha1.MyDe
 		log.Info("Update status completed")
 	}
 	return ctrl.Result{Requeue: requeue}, nil
+}
+
+func HashItem(data []byte) string {
+	hash := sha1.Sum(data)
+	return hex.EncodeToString(hash[:])
 }

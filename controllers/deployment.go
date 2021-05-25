@@ -31,7 +31,7 @@ func (r *MyDeploymentReconciler) ensureDeployment(instance *deploymentv1alpha1.M
 	td := &TemplateData{
 		Instance: instance,
 		Extra: map[string]interface{}{
-			"Check": "123",
+			"HTTPS": "true",
 		},
 	}
 
@@ -44,21 +44,20 @@ func (r *MyDeploymentReconciler) ensureDeployment(instance *deploymentv1alpha1.M
 	// Get object
 	found := &appsv1.Deployment{ObjectMeta: metav1.ObjectMeta{Name: deploy.Name, Namespace: deploy.Namespace}}
 
-	op, err := controllerutil.CreateOrUpdate(context.TODO(), r.Client, found, func() error {
-		if err = controllerutil.SetControllerReference(instance, found, r.Scheme); err != nil {
-			return err
-		}
+	_, err = controllerutil.CreateOrPatch(context.TODO(), r.Client, found, func() error {
 		// update the Deployment object
 		found.Labels = deploy.Labels
-		//found.Annotations = deploy.Annotations
+		for k, v := range deploy.Annotations {
+			found.Annotations[k] = v
+		}
 		found.Spec = deploy.Spec
-		return nil
+		return controllerutil.SetControllerReference(instance, found, r.Scheme)
 	})
 	if err != nil {
 		return errors.Wrap(err, "deployment.go: Deployment CreateOrUpdate failed")
 	}
 
-	instance.Status.DeploymentStatus = string(op)
+	instance.Status.Image = instance.Spec.Image
 	if err := r.Status().Update(context.TODO(), instance); err != nil {
 		return errors.Wrap(err, "deployment.go: Unable to update status")
 	}

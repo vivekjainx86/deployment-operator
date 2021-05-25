@@ -52,16 +52,17 @@ spec:
           status:
             description: MyDeploymentStatus defines the observed state of MyDeployment
             properties:
-              deploymentStatus:
-                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
-                  of cluster Important: Run "make" to regenerate code after modifying
-                  this file'
+              image:
                 type: string
               message:
                 type: string
-              secretStatus:
+              secretHash:
                 type: string
               status:
+                description: 'INSERT ADDITIONAL STATUS FIELD - define observed state
+                  of cluster Important: Run "make" to regenerate code after modifying
+                  this file DeploymentStatus string `json:"deploymentStatus,omitempty"`
+                  SecretStatus     string `json:"secretStatus,omitempty"`'
                 type: string
             type: object
         type: object

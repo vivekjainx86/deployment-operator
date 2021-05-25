@@ -3,6 +3,10 @@ kind: Deployment
 metadata:
   name: {{ .Instance.Name }}-web
   namespace: {{ .Instance.Namespace }}
+  annotations:
+    deployment.ridecell.io/owner: "deployment-controller"
+  labels:
+    type: "custom-type"
 spec:
   selector:
     matchLabels:
@@ -19,7 +23,7 @@ spec:
           ports:
             - containerPort: 80
               name: http
-            {{ if .Extra.Check }}
+            {{ if .Extra.HTTPS }}
             - containerPort: 443
               name: https
             {{ end }}
