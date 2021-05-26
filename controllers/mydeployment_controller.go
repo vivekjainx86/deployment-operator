@@ -32,6 +32,12 @@ import (
 	corev1 "k8s.io/api/core/v1"
 )
 
+var (
+	// This variable is overridden by controller tests.
+	// This is required because template folder path is relatively different for main.go and test suite.
+	BaseTemplatePath = "./controllers/templates"
+)
+
 // MyDeploymentReconciler reconciles a MyDeployment object
 type MyDeploymentReconciler struct {
 	client.Client
@@ -65,12 +71,12 @@ func (r *MyDeploymentReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	}
 
 	// Call deployment sub-routine
-	err = r.ensureDeployment(instance, "./controllers/templates/deployment.yaml")
+	err = r.ensureDeployment(instance, BaseTemplatePath+"/deployment.yaml")
 	if err != nil {
 		return r.manageError(instance, err, false)
 	}
 	// Call secret sub-routine
-	err = r.ensureSecret(instance, "./controllers/templates/secret.yaml")
+	err = r.ensureSecret(instance, BaseTemplatePath+"/secret.yaml")
 	if err != nil {
 		return r.manageError(instance, err, false)
 	}

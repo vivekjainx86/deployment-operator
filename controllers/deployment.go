@@ -47,6 +47,9 @@ func (r *MyDeploymentReconciler) ensureDeployment(instance *deploymentv1alpha1.M
 	_, err = controllerutil.CreateOrPatch(context.TODO(), r.Client, found, func() error {
 		// update the Deployment object
 		found.Labels = deploy.Labels
+		if found.Annotations == nil {
+			found.Annotations = map[string]string{}
+		}
 		for k, v := range deploy.Annotations {
 			found.Annotations[k] = v
 		}
