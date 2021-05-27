@@ -20,15 +20,17 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/go-logr/zapr"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
+	zap "go.uber.org/zap"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/envtest"
 	"sigs.k8s.io/controller-runtime/pkg/envtest/printer"
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
-	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	k8szap "sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	deploymentv1alpha1 "github.com/Ridecell/deployment-operator/api/v1alpha1"
 	// +kubebuilder:scaffold:imports
@@ -40,6 +42,8 @@ import (
 var cfg *rest.Config
 var k8sClient client.Client
 var testEnv *envtest.Environment
+var reconcile *MyDeploymentReconciler
+var instance *deploymentv1alpha1.MyDeployment
 
 func TestAPIs(t *testing.T) {
 	RegisterFailHandler(Fail)
@@ -50,7 +54,7 @@ func TestAPIs(t *testing.T) {
 }
 
 var _ = BeforeSuite(func() {
-	logf.SetLogger(zap.New(zap.WriteTo(GinkgoWriter), zap.UseDevMode(true)))
+	logf.SetLogger(k8szap.New(k8szap.WriteTo(GinkgoWriter), k8szap.UseDevMode(true)))
 
 	By("bootstrapping test environment")
 	testEnv = &envtest.Environment{
@@ -69,6 +73,16 @@ var _ = BeforeSuite(func() {
 	k8sClient, err = client.New(cfg, client.Options{Scheme: scheme.Scheme})
 	Expect(err).NotTo(HaveOccurred())
 	Expect(k8sClient).NotTo(BeNil())
+
+	zapLog, _ := zap.NewDevelopment()
+	reconcile = &MyDeploymentReconciler{
+		Client: k8sClient,
+		Log:    zapr.NewLogger(zapLog),
+		Scheme: scheme.Scheme,
+	}
+
+	// Modify base template path
+	BaseTemplatePath = "./templates"
 
 }, 60)
 
