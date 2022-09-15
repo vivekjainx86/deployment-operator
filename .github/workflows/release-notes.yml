@@ -24,6 +24,10 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
+          configurationJson: |
+            {
+              "template": "${{CHANGELOG}}\n\n<details>\n<summary>Uncategorized</summary>\n\n${{UNCATEGORIZED}}\n</details>"  
+            }
           owner: "vivekjainx86"
           repo: "deployment-operator"
           fromTag: ${{ github.event.inputs.OLD_COMMIT_HASH }}
