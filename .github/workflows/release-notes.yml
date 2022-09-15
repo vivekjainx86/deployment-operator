@@ -1,0 +1,34 @@
+name: release-notes
+on:
+  workflow_dispatch:
+    inputs:
+      OLD_COMMIT_HASH:
+        description: 'OLD Commit hash (from master branch)'
+        required: true
+      LATEST_COMMIT_HASH:
+        description: 'Latest Commit hash (from master branch)'
+        required: true
+
+jobs:
+  release-notes:
+    name: release-notes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Build Changelog
+        id: github_release
+        uses: mikepenz/release-changelog-builder-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          owner: "vivekjainx86"
+          repo: "deployment-operator"
+          fromTag: ${{ github.event.inputs.OLD_COMMIT_HASH }}
+          toTag: ${{ github.event.inputs.LATEST_COMMIT_HASH }}
+
+      - name: check release note output
+        run: |
+          echo ${{steps.github_release.outputs.changelog}}
