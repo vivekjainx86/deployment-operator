@@ -35,4 +35,4 @@ jobs:
 
       - name: check release note output
         run: |
-          echo ${{steps.github_release.outputs.changelog}}
+          echo "${{steps.github_release.outputs.changelog}}"
